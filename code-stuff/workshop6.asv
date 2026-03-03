@@ -138,17 +138,13 @@ ylim([0 0.2]); legend show;
 r1 = 0.5; r2 = 0.3;  %m
 m = 10; % kg
 k1 = 200; k2 = 300; k3 = 500; %N/m
-
+theta0 = 0.15; %radians
 R_val = 10; %kg/s
 r_eq = r1 + r2; % Distance from ground contact to spring line
 
-% Equivalent Inertia about the contact point
+% Equivalent Inertia about the contact point (Parallel Axis Theorem)
 Jeff = (3/2) * m * r1^2;
 s = tf('s');
-
-% Initial conditions
-
-theta0 = 0.15; %radiansa
 
 % Time vector 
 N = 1000;
