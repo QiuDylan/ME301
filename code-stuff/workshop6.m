@@ -169,7 +169,7 @@ F3 = (k3 * x2)/s;
 m_eq = Jeff / (r_eq)^2;
 
 % Force Vector 
-F_vec = [F1 - F2; F2 - F3];
+F_vec = [-F1 + F2; -F2 - F3];
 
 % Impedance Matrix Z
 Z_b = [(m_eq*s + k1/s + k2/s), -k2/s;
@@ -180,7 +180,7 @@ V_vec = inv(Z_b) * F_vec;
 
 % Extracting Velocity and Displacement for Mesh 1
 v1_t = impulse(V_vec(1), t); 
-x1_t = impulse(V_vec(1)/s + (r_eq * theta0)/s, t);
+x1_t = impulse(V_vec(1)/s + x1/s, t);
 
 % Plotting
 figure;
@@ -192,7 +192,7 @@ ylabel('x_1(t) [m]'); xlabel('Time (s)'); title('X(t)');
 % Part C 
 
 % Impedance and force Matrix 
-F_vec_c = [F1 ; 0];
+F_vec_c = [-F1 ; 0];
 Z_c = [(m_eq*s + k1/s + R), -R;
        -R,      (R + k3/s) ];
 
