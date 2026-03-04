@@ -140,109 +140,72 @@ m = 10; % kg
 k1 = 200; k2 = 300; k3 = 500; %N/m
 
 R_val = 10; %kg/s
-r_eq = r1 + r2; % Distance from ground contact to spring line
 
 % Equivalent Inertia about the contact point
 Jeff = (3/2) * m * r1^2;
-s = tf('s');
 
 % Initial conditions
 
-theta0 = 0.15; %radiansa
+theta0 = 0.15; %radians
+
+% derived values
+x1 = r2 * theta0;
+x2 = k2 * x1 / (k2+k3); 
+r_eq = r1 + r2; % Distance from ground contact to spring line
+
+s = tf('s');
 
 % Time vector 
 N = 1000;
 dt = 0.01;
 t = (0:N-1).'*dt;
 
-% Part (b): Original Series Springs and EOM
-keq_b = 1 / (1/k1 + 1/k2 + 1/k3);
-Krot_b = keq_b * (r_eq)^2;
-Theta_b_sys = (Jeff * s * theta0) / (Jeff * s^2 + Krot_b);
+% Linear Mesh solution
 
-% Part (c): Modified System (k2 replaced by R) and EOM
-keq_c = 1 / (1/k1 + 1/k3);
-Krot_c = keq_c * (r_eq)^2;
-Rrot = R_val * (r_eq)^2;
+% Initial Condition Forces
+F1 = (k1 * x1)/s;
+F2 = (k2 * (x2-x1))/s;
+F3 = (k3 * x2)/s;
+m_eq = Jeff / (r_eq)^2;
 
-% Equation of motion in Laplace: (Jeff*s^2 + Rrot*s + Krot_c)Theta = (Jeff*s + Rrot)theta0
-Theta_c_sys = (Jeff * s * theta0 + Rrot * theta0) / (Jeff * s^2 + Rrot * s + Krot_c);
+% Force Vector 
+F_vec = [F1 - F2; F2 - F3];
 
-% Calculate Time Domain Signals for Original System (Undamped)
-theta_b = impulse(Theta_b_sys, t);
-omega_b = impulse(s * Theta_b_sys, t);
-v_b = omega_b * r_eq;
-x_b = theta_b * r_eq;
+% Impedance Matrix Z
+Z_b = [(m_eq*s + k1/s + k2/s), -k2/s;
+      -k2/s, (k2/s + k3/s) ];
 
-% Calculate Time Domain Signals for Modified System (Damped)
-theta_c = impulse(Theta_c_sys, t);
-omega_c = impulse(s * Theta_c_sys - theta0, t);
-v_c = omega_c * r_eq;
-x_c = theta_c * r_eq;
+% Solve for Mesh Velocities V = [v1; v2]
+V_vec = inv(Z_b) * F_vec;
 
-% Plotting - Rotational Results
-figure('Name', 'Problem 2: Rotational Response');
-subplot(2,1,1); hold on; grid on;
-plot(t, theta_b, 'LineWidth', 1.5, 'DisplayName', 'Original (Springs Only)');
-plot(t, theta_c, 'LineWidth', 1.5, 'DisplayName', 'Modified (With Damper)');
-ylabel('\theta (rad)'); title('Angular Displacement'); legend show;
+% Extracting Velocity and Displacement for Mesh 1
+v1_t = impulse(V_vec(1), t); 
+x1_t = impulse(V_vec(1)/s + (r_eq * theta0)/s, t);
 
-subplot(2,1,2); hold on; grid on;
-plot(t, omega_b, 'LineWidth', 1.5, 'DisplayName', 'Original');
-plot(t, omega_c, 'LineWidth', 1.5, 'DisplayName', 'Modified');
-ylabel('\omega (rad/s)'); xlabel('Time (s)'); title('Angular Velocity');
+% Plotting
+figure;
+subplot(2,1,1); plot(t, v1_t, 'b', 'LineWidth', 1.5); grid on;
+ylabel('v_1(t) [m/s]'); title('V(t) (no damping)');
+subplot(2,1,2); plot(t, x1_t, 'r', 'LineWidth', 1.5); grid on;
+ylabel('x_1(t) [m]'); xlabel('Time (s)'); title('X(t)');
 
-% Plotting - Linear Results Comparison
-figure('Name', 'Problem 2: Linear Response Comparison');
-subplot(2,1,1); hold on; grid on;
-plot(t, v_b, 'b--', 'LineWidth', 1.5, 'DisplayName', 'Undamped (Original)');
-plot(t, v_c, 'b', 'LineWidth', 2, 'DisplayName', 'Damped (k_2 -> R)');
-ylabel('v(t) [m/s]'); title('Linear Velocity v(t)'); legend show;
+% Part C 
 
-subplot(2,1,2); hold on; grid on;
-plot(t, x_b, 'r--', 'LineWidth', 1.5, 'DisplayName', 'Undamped (Original)');
-plot(t, x_c, 'r', 'LineWidth', 2, 'DisplayName', 'Damped (k_2 -> R)');
-ylabel('x(t) [m]'); xlabel('Time (s)'); title('Linear Displacement x(t)'); legend show;
+% Impedance and force Matrix 
+F_vec_c = [F1 ; 0];
+Z_c = [(m_eq*s + k1/s + R), -R;
+       -R,      (R + k3/s) ];
 
-% 
-% keq_rot = (k1 + k3) * (r2^2); % Rotational stiffness
-% R_rot = R_val * (r2^2);       % Rotational damping
-% 
-% s = tf('s');
-% 
-% % --- Force Vector Approach ---
-% % F_inertia = Jeff * s * theta0
-% % F_damping = R_rot * theta0
-% % F_spring = (keq_rot * theta0) / s
-% F_j = Jeff * s * theta0;
-% F_r = R_rot * theta0;   
-% F_k = keq_rot * theta0 / s;
-% 
-% % Net Force Vector
-% F = [F_j + F_r - F_k];
-% 
-% % mpedance / Admittance
-% Z = s * Jeff + R_rot + keq_rot/s;
-% Y = inv(Z);
-% 
-% % Angular Velocity (V) and Displacement (X) in Laplace
-% V_theta = inv(Z) .* F;
-% X_theta = V_theta/s + theta0/s;
-% 
-% % Time Vector
-% N = 1000;
-% dt = 0.001;
-% t = (0:N-1).'*dt;
-% 
-% Conversion from Angular to Linear 
-% %
-% v = impulse(V_theta, t) * r2;
-% x = impulse(X_theta, t) * r2;
-% 
-% % Plotting
-% figure;
-% subplot(2,1,1); plot(t, v, 'b', 'LineWidth', 1.5); grid on;
-% ylabel('v(t) [m/s]'); title('Linear Velocity (r_2 scaling)');
-% subplot(2,1,2); plot(t, x, 'r', 'LineWidth', 1.5); grid on;
-% ylabel('x(t) [m]'); title('Linear Displacement (r_2 scaling)');
-% xlabel('Time (s)');
+% Solve for Mesh Velocities V = [v1; v2]
+V_vec_c = inv(Z_c) * F_vec_c;
+
+% Extracting Velocity and Displacement for Mesh 1
+v1_t_c = impulse(V_vec_c(1), t); 
+x1_t_c = impulse(V_vec_c(1)/s + x1/s, t);
+
+% Plotting
+figure;
+subplot(2,1,1); plot(t, v1_t_c, 'b', 'LineWidth', 1.5); grid on;
+ylabel('v_1(t) [m/s]'); title('Velocity v(t) With Damper');
+subplot(2,1,2); plot(t, x1_t_c, 'r', 'LineWidth', 1.5); grid on;
+ylabel('x_1(t) [m]'); xlabel('Time (s)'); title('Position x(t) With Damper');
