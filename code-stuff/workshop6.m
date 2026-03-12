@@ -8,6 +8,9 @@ c = 1.2665*10^-6;        % compliance constant (m/N)
 R = 10;        % Damping coefficient (kg/s)
 k = 1/ c;          % spring constant
 
+% derived parameters
+wn = sqrt(1/(m*c));
+
 % Init Conds
 
 v0 = 1; % m/s
@@ -43,7 +46,8 @@ x = impulse(X,t);
 % Admittance In terms of \omega
 
 y = 1 ./ (R + k ./(1i*w) + 1i*w*m);
-%bode(Y)
+H = X / F; 
+bode(H)
 
 % Part (c): Base case plots for v(t) and x(t)
 figure('Name', 'Part (c)');
@@ -79,14 +83,17 @@ for j = 1:length(R_vec)
     % Responses with Initial Conditions
     V_s = (m*v0 - k*x0/s) * Y_tf;
     X_s = V_s/s + x0/s;
+    H_s = Y/s;
     
     v_r = impulse(V_s, t);
     x_r = impulse(X_s, t);
+    %h_w = impulse(H_s, w);
     y_w_r = 1 ./ (R_val + 1i*w*m + k./(1i*w));
     
     figure(figV); plot(t, v_r, 'LineWidth', 2, 'DisplayName', ['R = ', num2str(R_val)]);
     figure(figX); plot(t, x_r, 'LineWidth', 2, 'DisplayName', ['R = ', num2str(R_val)]);
     figure(figY); semilogx(w, abs(y_w_r), 'LineWidth', 2, 'DisplayName', ['R = ', num2str(R_val)]);
+    bode(H_s,w);
 end
 
 figure(figV); xlabel('Time (s)'); ylabel('v(t)'); legend show;
