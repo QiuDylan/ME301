@@ -1,0 +1,113 @@
+%% Workshop 7, Problem 2: Impact Hammer Data Analysis (All Tips)
+clear; clc; close all;
+
+% --- 1. Define the Data Files ---
+% List of files from the provided image
+files = {
+    'Team A1 - Impact Hammer Measurements - Tip black 1.mat',
+    'Team A1 - Impact Hammer Measurements - Tip blue 2.mat',
+    'Team A1 - Impact Hammer Measurements - Tip red 5.mat',
+    'Team A1 - Impact Hammer Measurements - Tip white 2.mat'
+};
+
+% Labels and colors for the plots to distinguish the tips
+tips = {'Black Tip', 'Blue Tip', 'Red Tip', 'White Tip'};
+colors = {'k', 'b', 'r', 'g'}; 
+
+fs = 1000;          % Sampling frequency Hz
+N_fft = 2^15;       % Power of 2 padding for high resolution
+
+% --- Initialize Figures for Overlays ---
+fig_time = figure('Name', 'Part B: Time Domain Measurements');
+fig_fft  = figure('Name', 'Part C: FFTs of Input and Output');
+fig_frf  = figure('Name', 'Part D: Frequency Response Function (FRF)');
+fig_irf  = figure('Name', 'Part E: Impulse Response Function h(t)');
+
+% Main loop
+for i = 1:length(files)
+    
+    load(files{i}); 
+    
+    % Reconstruct the Time Vector using the exact logic from the data collection script
+    N_tot = size(data, 1);       
+    t = (0:N_tot-1).' / fs;     
+    
+    % Extract sensor data
+    force = data(:,1);  % Force transducer (Input)
+    accel = data(:,2);  % Accelerometer (Output)
+    
+    % Part B: Plot Time Domain Data
+    figure(fig_time);
+    subplot(2,1,1); hold on;
+    plot(t, force, colors{i}, 'LineWidth', 1.2, 'DisplayName', tips{i});
+    title('Force Transducer Measurement');
+    xlabel('Time (s)'); ylabel('Amplitude (V)'); grid on;
+    
+    subplot(2,1,2); hold on;
+    plot(t, accel, colors{i}, 'LineWidth', 1.2, 'DisplayName', tips{i});
+    title('Accelerometer Measurement');
+    xlabel('Time (s)'); ylabel('Amplitude (V)'); grid on;
+    
+    % Apply Zero Padding
+    N_original = length(t);
+    force_padded = [force(:); zeros(N_fft - N_original, 1)];
+    accel_padded = [accel(:); zeros(N_fft - N_original, 1)];
+    
+    % Part C: Compute FFTs
+    % FFT of Force
+    F_Y = fft(force_padded);
+    F_P2 = abs(F_Y/N_fft);
+    F_P1 = F_P2(1:floor(N_fft/2)+1);
+    F_P1(2:end-1) = 2*F_P1(2:end-1);
+    
+    % FFT of Acceleration
+    A_Y = fft(accel_padded);
+    A_P2 = abs(A_Y/N_fft);
+    A_P1 = A_P2(1:floor(N_fft/2)+1);
+    A_P1(2:end-1) = 2*A_P1(2:end-1);
+    
+    % Frequency vector
+    freq = fs*(0:(N_fft/2))/N_fft;
+    
+    figure(fig_fft);
+    subplot(2,1,1); hold on;
+    plot(freq, F_P1, colors{i}, 'DisplayName', tips{i});
+    title('FFT of Force Data');
+    xlabel('Frequency (Hz)'); ylabel('Magnitude'); grid on; xlim([0 200]);
+    
+    subplot(2,1,2); hold on;
+    plot(freq, A_P1, colors{i}, 'DisplayName', tips{i});
+    title('FFT of Accelerometer Data');
+    xlabel('Frequency (Hz)'); ylabel('Magnitude'); grid on; xlim([0 200]);
+    
+    % --- Part D: Frequency Response Function (H) ---
+    H = A_Y ./ F_Y;
+    H_mag = abs(H(1:floor(N_fft/2)+1));
+    H_mag(2:end-1) = 2*H_mag(2:end-1);
+    
+    % Normalized Magnitude in dB
+    H_mag_db_norm = 20*log10(H_mag/max(H_mag));
+    
+    figure(fig_frf); hold on;
+    semilogx(freq, H_mag_db_norm, colors{i}, 'LineWidth', 1.5, 'DisplayName', tips{i});
+    title('Normalized FRF Magnitude |H(f)| (Semi-Log Scale)');
+    xlabel('Frequency (Hz)'); ylabel('Magnitude (dB)');
+    grid on; xlim([0 500]); ylim([-80 5]);
+    
+    % --- Part E: Impulse Response Function (h) ---
+    h = ifft(H, 'symmetric');
+    t_padded = (0:N_fft-1)/fs;
+    
+    figure(fig_irf); hold on;
+    plot(t_padded, h, colors{i}, 'LineWidth', 1.2, 'DisplayName', tips{i});
+    title('Impulse Response Function h(t)');
+    xlabel('Time (s)'); ylabel('Amplitude'); grid on;
+    xlim([0 max(t)]); 
+    
+end
+
+% --- 3. Add Legends to All Figures ---
+figure(fig_time); subplot(2,1,1); legend('show'); subplot(2,1,2); legend('show');
+figure(fig_fft); subplot(2,1,1); legend('show'); subplot(2,1,2); legend('show');
+figure(fig_frf); legend('show');
+figure(fig_irf); legend('show');
