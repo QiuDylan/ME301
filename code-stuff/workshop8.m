@@ -1,0 +1,186 @@
+% Dylan Qiu ME'27
+% ME301, Workshop 8 Problem 1 Base Excitation
+clear; clc; close all;
+
+% Parameters
+m = 130;
+k = 45e3;
+R = 47;
+lambda = 4;
+x_base_amp = 0.04 / 2;
+
+c_kph = 60;
+c = c_kph * (1000 / 3600);
+wf = 2*pi*c / lambda;
+
+% Time Vector
+N = 1000;
+dt = 0.01;
+t = (0:N-1).'*dt;
+
+% Frequency vector
+Nf = 10e4;
+df= 0.01;
+w = (0:Nf-1).'*df;
+
+
+% Initial Calcs
+s = tf('s');
+
+F = [0; x_base_amp * s^2 / (s^2 + wf^2)];
+Z = [s*m + R + k/s, -(R + k/s);
+     0,             1];
+
+V_vec = inv(Z) * F;
+V_mass = V_vec(1);
+X_mass = V_mass / s;
+X_base = x_base_amp * s / (s^2 + wf^2);
+Y_sys  = 1 / Z(1,1);
+FRF    = Y_sys / s;
+H      = X_mass / X_base;
+
+x_t = impulse(X_mass, t);
+v_t = impulse(V_mass, t);
+
+
+% Helper: extract dB magnitude
+function mag_db = getMagDB(sys, w)
+    [mag, ~] = bode(sys, w);
+    mag_db = 20*log10(squeeze(mag));
+end
+
+% ii. Admittance
+figure(1);
+bodemag(Y_sys, {1e-1, 1e3});
+title('ii. Magnitude of Admittance (Y)');
+grid on;
+
+% iii. FRF
+figure(2);
+bodemag(FRF, {1e-1, 1e3});
+title('iii. Magnitude of FRF');
+grid on;
+
+% iv. Transmissibility
+figure(3);
+bodemag(H, {1e-1, 1e3});
+title('iv. Magnitude of Transmissibility (X/X_{base})');
+grid on;
+
+
+% v. Displacement and Velocity
+figure(4);
+subplot(2,1,1);
+plot(t, x_t, 'LineWidth', 1.5);
+title('v. Displacement x(t)');
+xlabel('Time (s)'); ylabel('Displacement (m)');
+grid on;
+
+subplot(2,1,2);
+plot(t, v_t, 'LineWidth', 1.5, 'Color', '#D95319');
+title('v. Velocity v(t)');
+xlabel('Time (s)'); ylabel('Velocity (m/s)');
+grid on;
+
+% vi. Effect of Damping (R)
+R_vals  = [20, 47, 100];
+k_fixed = 45e3;
+legend_R = arrayfun(@(r) sprintf('R = %d kg/s', r), R_vals, 'UniformOutput', false);
+
+figure(5);
+subplot(3,1,1); hold on;
+subplot(3,1,2); hold on;
+subplot(3,1,3); hold on;
+
+for i = 1:3
+    Ri   = R_vals(i);
+    Yi   = tf([1 0],         [m, Ri, k_fixed]);
+    FRFi = tf([1],           [m, Ri, k_fixed]);
+    Hi   = tf([Ri, k_fixed], [m, Ri, k_fixed]);
+
+    subplot(3,1,1); semilogx(w, getMagDB(Yi,   w), 'LineWidth', 1.5);
+    subplot(3,1,2); semilogx(w, getMagDB(FRFi, w), 'LineWidth', 1.5);
+    subplot(3,1,3); semilogx(w, getMagDB(Hi,   w), 'LineWidth', 1.5);
+end
+
+subplot(3,1,1); grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('vi. Admittance |Y| — Effect of Damping R'); legend(legend_R, 'Location','best');
+subplot(3,1,2); grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('vi. FRF |H| — Effect of Damping R'); legend(legend_R, 'Location','best');
+subplot(3,1,3); grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('vi. Transmissibility |X/X_{base}| — Effect of Damping R'); legend(legend_R, 'Location','best');
+
+
+% vii. Effect of Stiffness (k)
+k_vals  = [20000, 45000, 80000];
+R_fixed = 47;
+legend_k = arrayfun(@(ki) sprintf('k = %d N/m', ki), k_vals, 'UniformOutput', false);
+
+figure(6);
+subplot(3,1,1); hold on;
+subplot(3,1,2); hold on;
+subplot(3,1,3); hold on;
+
+for i = 1:3
+    ki   = k_vals(i);
+    Yi   = tf([1 0],          [m, R_fixed, ki]);
+    FRFi = tf([1],            [m, R_fixed, ki]);
+    Hi   = tf([R_fixed, ki],  [m, R_fixed, ki]);
+
+    subplot(3,1,1); semilogx(w, getMagDB(Yi,   w), 'LineWidth', 1.5);
+    subplot(3,1,2); semilogx(w, getMagDB(FRFi, w), 'LineWidth', 1.5);
+    subplot(3,1,3); semilogx(w, getMagDB(Hi,   w), 'LineWidth', 1.5);
+end
+
+subplot(3,1,1); grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('vii. Admittance |Y| — Effect of Stiffness k'); legend(legend_k, 'Location','best');
+subplot(3,1,2); grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('vii. FRF |H| — Effect of Stiffness k'); legend(legend_k, 'Location','best');
+subplot(3,1,3); grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('vii. Transmissibility |X/X_{base}| — Effect of Stiffness k'); legend(legend_k, 'Location','best');
+
+% viii. Effect of Car Speed (c)
+
+c_kph_vals = [30, 60, 90];
+colors     = {'r', 'g', 'm'};
+legend_c   = arrayfun(@(ci) sprintf('c = %d kph (\\omega_f = %.1f rad/s)', ci, ...
+    2*pi*(ci*1000/3600)/lambda), c_kph_vals, 'UniformOutput', false);
+
+Y_base   = tf([1 0],            [m, R, k]);
+FRF_base = tf([1],              [m, R, k]);
+H_base   = tf([R, k], [m, R, k]);
+
+mag_Y   = getMagDB(Y_base,   w);
+mag_FRF = getMagDB(FRF_base, w);
+mag_H   = getMagDB(H_base,   w);
+
+figure(7);
+subplot(3,1,1);
+semilogx(w, mag_Y, 'b', 'LineWidth', 2); hold on;
+for i = 1:3
+    wf_i = 2*pi*(c_kph_vals(i)*1000/3600)/lambda;
+    xline(wf_i, '--', 'Color', colors{i}, 'LineWidth', 1.5);
+end
+grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('viii. Admittance |Y| — Effect of Car Speed');
+legend(['Base System', legend_c], 'Location','best');
+
+subplot(3,1,2);
+semilogx(w, mag_FRF, 'b', 'LineWidth', 2); hold on;
+for i = 1:3
+    wf_i = 2*pi*(c_kph_vals(i)*1000/3600)/lambda;
+    xline(wf_i, '--', 'Color', colors{i}, 'LineWidth', 1.5);
+end
+grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('viii. FRF |H| — Effect of Car Speed');
+legend(['Base System', legend_c], 'Location','best');
+
+subplot(3,1,3);
+semilogx(w, mag_H, 'b', 'LineWidth', 2); hold on;
+for i = 1:3
+    wf_i = 2*pi*(c_kph_vals(i)*1000/3600)/lambda;
+    xline(wf_i, '--', 'Color', colors{i}, 'LineWidth', 1.5);
+end
+grid on; xlabel('\omega (rad/s)'); ylabel('Magnitude (dB)');
+title('viii. Transmissibility |X/X_{base}| — Effect of Car Speed');
+legend(['Base System', legend_c], 'Location','best');
