@@ -92,23 +92,24 @@ wns = w(locs).';
 fprintf('The natural frequencies (rad/s) are:\n');
 disp(wns);
 
-A = im_2d(locs, 1:n).';
+%A = im_2d(locs, 1:n).';
 
 
 %% 
+
 pos = [0; 1; 2; 3; 4]; 
 
 figure(3);
 
 for ii = 1:length(wns)
     
-    x = [0; -A(:,ii)]; 
+    x = [0; A(:,ii)]; 
 
     subplot(2, 2, ii);
     plot(x, pos, 'Marker', '.', 'MarkerSize', 20, 'LineWidth', 1.5);
   
     title(sprintf('Mode %d (\\omega_n = %.2f rad/s)', ii, wns(ii)));
-    xlim([-.31, .31]); 
+    xlim([-.4, .4]); 
     ylim([0, 4]);
     grid on;
     
